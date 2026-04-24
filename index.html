@@ -1,0 +1,895 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ระบบคัดกรอง OV-69 & CASCAP</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap');
+        body { font-family: 'Sarabun', sans-serif; background-color: #f3f4f6; }
+        .tab-btn.active { border-bottom: 2px solid #2563eb; color: #2563eb; font-weight: 600; }
+        .hidden-element { display: none !important; }
+        .loader { border-top-color: #3498db; -webkit-animation: spinner 1.5s linear infinite; animation: spinner 1.5s linear infinite; }
+        @keyframes spinner { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        /* ทำให้กราฟปรับสัดส่วนได้ดีขึ้นบนมือถือ */
+        .chart-container { position: relative; height: 300px; width: 100%; }
+    </style>
+</head>
+<body>
+
+    <!-- Navbar -->
+    <nav class="bg-white shadow-md sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <i class="fas fa-notes-medical text-blue-600 text-2xl mr-2"></i>
+                    <span class="font-bold text-xl text-gray-800">OV-69 Screening</span>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- App Container -->
+    <div class="max-w-4xl mx-auto mt-6 bg-white shadow rounded-lg overflow-hidden mb-10">
+        <!-- Tabs -->
+        <div class="flex border-b">
+            <button onclick="switchTab('screening')" id="tab-screening" class="tab-btn active w-1/3 py-4 text-center text-gray-600 hover:bg-gray-50 focus:outline-none transition">
+                <i class="fas fa-clipboard-list mr-2"></i> แบบคัดกรอง
+            </button>
+            <button onclick="switchTab('dashboard');" id="tab-dashboard" class="tab-btn w-1/3 py-4 text-center text-gray-600 hover:bg-gray-50 focus:outline-none transition">
+                <i class="fas fa-chart-pie mr-2"></i> แดชบอร์ด
+            </button>
+            <button onclick="switchTab('admin');" id="tab-admin" class="tab-btn w-1/3 py-4 text-center text-gray-600 hover:bg-gray-50 focus:outline-none transition">
+                <i class="fas fa-users-cog mr-2"></i> จัดการ (Admin)
+            </button>
+        </div>
+
+        <!-- Section: Screening Form -->
+        <div id="section-screening" class="p-4 sm:p-6">
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">แบบคัดกรองด้วยวาจา (Verbal screening)</h2>
+            <p class="text-gray-600 mb-6 text-sm">เพื่อประเมินความเสี่ยงต่อการเป็นมะเร็งท่อน้ำดี</p>
+            
+            <form id="ovForm" onsubmit="submitForm(event)">
+                
+                <!-- ข้อมูลทั่วไป -->
+                <div class="bg-gray-50 p-4 rounded-lg mb-6 border">
+                    <h3 class="text-lg font-semibold mb-4 text-blue-700"><i class="fas fa-user mr-2"></i>ข้อมูลทั่วไป</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">เลขประจำตัวประชาชน (13 หลัก)</label>
+                            <input type="text" id="idCard" required pattern="\d{13}" maxlength="13" placeholder="ระบุตัวเลข 13 หลัก" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 p-2 border outline-none">
+                        </div>
+                        <div class="flex gap-2">
+                            <div class="w-1/3">
+                                <label class="block text-sm font-medium text-gray-700">คำนำหน้า</label>
+                                <select id="prefix" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border outline-none">
+                                    <option value="นาย">นาย</option>
+                                    <option value="นาง">นาง</option>
+                                    <option value="นางสาว">นางสาว</option>
+                                    <option value="ด.ช.">ด.ช.</option>
+                                    <option value="ด.ญ.">ด.ญ.</option>
+                                </select>
+                            </div>
+                            <div class="w-2/3">
+                                <label class="block text-sm font-medium text-gray-700">ชื่อ - นามสกุล</label>
+                                <div class="flex gap-2">
+                                    <input type="text" id="firstName" placeholder="ชื่อ" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border outline-none">
+                                    <input type="text" id="lastName" placeholder="นามสกุล" required class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border outline-none">
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">เพศ</label>
+                            <select id="gender" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border outline-none">
+                                <option value="ชาย">ชาย</option>
+                                <option value="หญิง">หญิง</option>
+                            </select>
+                        </div>
+                        <div class="flex gap-2">
+                            <div class="w-2/3">
+                                <label class="block text-sm font-medium text-gray-700">วัน/เดือน/ปีเกิด (พ.ศ.)</label>
+                                <div class="flex gap-1 mt-1">
+                                    <select id="dobDay" class="block w-1/3 rounded-md border-gray-300 shadow-sm p-2 border outline-none text-sm" onchange="calculateAge()">
+                                        <option value="">วัน</option>
+                                        <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option>
+                                        <option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option><option value="17">17</option><option value="18">18</option><option value="19">19</option><option value="20">20</option>
+                                        <option value="21">21</option><option value="22">22</option><option value="23">23</option><option value="24">24</option><option value="25">25</option><option value="26">26</option><option value="27">27</option><option value="28">28</option><option value="29">29</option><option value="30">30</option><option value="31">31</option>
+                                    </select>
+                                    <select id="dobMonth" class="block w-1/3 rounded-md border-gray-300 shadow-sm p-2 border outline-none text-sm" onchange="calculateAge()">
+                                        <option value="">เดือน</option>
+                                        <option value="1">ม.ค.</option><option value="2">ก.พ.</option><option value="3">มี.ค.</option><option value="4">เม.ย.</option><option value="5">พ.ค.</option><option value="6">มิ.ย.</option>
+                                        <option value="7">ก.ค.</option><option value="8">ส.ค.</option><option value="9">ก.ย.</option><option value="10">ต.ค.</option><option value="11">พ.ย.</option><option value="12">ธ.ค.</option>
+                                    </select>
+                                    <input type="text" id="dobYear" placeholder="ปี พ.ศ." maxlength="4" pattern="\d{4}" title="กรุณาระบุปี พ.ศ. 4 หลัก" class="block w-1/3 rounded-md border-gray-300 shadow-sm p-2 border outline-none text-sm" oninput="this.value = this.value.replace(/[^0-9]/g, ''); calculateAge();">
+                                </div>
+                            </div>
+                            <div class="w-1/3">
+                                <label class="block text-sm font-medium text-gray-700">อายุ (ปี)</label>
+                                <input type="number" id="age" required min="0" placeholder="ระบุอายุ" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border bg-gray-100 outline-none" readonly>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">สถานภาพสมรส</label>
+                            <select id="maritalStatus" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border outline-none">
+                                <option>โสด</option><option>คู่</option><option>หม้าย</option><option>หย่า</option><option>แยก</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">อาชีพ</label>
+                            <select id="occupation" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border outline-none">
+                                <option value="">เลือกอาชีพ</option>
+                                <option value="ข้าราชการ/พนักงานของรัฐ">ข้าราชการ/พนักงานของรัฐ</option>
+                                <option value="พนักงานบริษัทเอกชน">พนักงานบริษัทเอกชน</option>
+                                <option value="ธุรกิจส่วนตัว/ค้าขาย">ธุรกิจส่วนตัว/ค้าขาย</option>
+                                <option value="เกษตรกร">เกษตรกร</option>
+                                <option value="รับจ้างทั่วไป">รับจ้างทั่วไป</option>
+                                <option value="นักเรียน/นักศึกษา">นักเรียน/นักศึกษา</option>
+                                <option value="พ่อบ้าน/แม่บ้าน/ว่างงาน">พ่อบ้าน/แม่บ้าน/ว่างงาน</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">หมายเลขโทรศัพท์</label>
+                            <input type="tel" id="phone" placeholder="ระบุเบอร์โทรศัพท์" pattern="[0-9]{9,10}" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border outline-none">
+                        </div>
+                    </div>
+                    
+                    <div class="mt-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">ที่อยู่ปัจจุบัน</label>
+                        <div class="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                            <div class="sm:col-span-1">
+                                <input type="text" id="houseNo" placeholder="บ้านเลขที่" class="block w-full rounded-md border-gray-300 shadow-sm p-2 border outline-none">
+                            </div>
+                            <div class="sm:col-span-1">
+                                <select id="moo" class="block w-full rounded-md border-gray-300 shadow-sm p-2 border outline-none">
+                                    <option value="">เลือกหมู่ที่</option>
+                                    <option value="1">หมู่ 1</option>
+                                    <option value="2">หมู่ 2</option>
+                                    <option value="3">หมู่ 3</option>
+                                    <option value="4">หมู่ 4</option>
+                                    <option value="5">หมู่ 5</option>
+                                    <option value="6">หมู่ 6</option>
+                                    <option value="7">หมู่ 7</option>
+                                    <option value="8">หมู่ 8</option>
+                                    <option value="9">หมู่ 9</option>
+                                    <option value="10">หมู่ 10</option>
+                                    <option value="11">หมู่ 11</option>
+                                    <option value="12">หมู่ 12</option>
+                                </select>
+                            </div>
+                            <div class="sm:col-span-2">
+                                <input type="text" id="addressFixed" value="ต.บึงเนียม อ.เมือง จ.ขอนแก่น" readonly class="block w-full rounded-md border-gray-300 shadow-sm p-2 border bg-gray-100 outline-none text-gray-600 font-medium">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-2 md:grid-cols-2 gap-4 mt-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">น้ำหนัก (กก.)</label>
+                            <input type="number" step="0.1" id="weight" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">ส่วนสูง (ซม.)</label>
+                            <input type="number" step="0.1" id="height" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border outline-none">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ข้อมูลสุขภาพ -->
+                <div class="bg-blue-50 p-4 rounded-lg mb-6 border border-blue-100">
+                    <h3 class="text-lg font-semibold mb-4 text-blue-700"><i class="fas fa-heartbeat mr-2"></i>ข้อมูลสุขภาพและพฤติกรรม</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">โรคประจำตัว (เลือกได้มากกว่า 1 ข้อ)</label>
+                            <div class="mt-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 p-3 border rounded-md bg-white border-gray-300">
+                                <label class="cursor-pointer flex items-center"><input type="checkbox" name="udisease" value="ไม่มี" class="mr-2 h-4 w-4 text-blue-600" onchange="handleUDiseaseChange(this)"> ไม่มี</label>
+                                <label class="cursor-pointer flex items-center"><input type="checkbox" name="udisease" value="เบาหวาน" class="mr-2 h-4 w-4 text-blue-600" onchange="handleUDiseaseChange(this)"> เบาหวาน</label>
+                                <label class="cursor-pointer flex items-center"><input type="checkbox" name="udisease" value="ความดันโลหิตสูง" class="mr-2 h-4 w-4 text-blue-600" onchange="handleUDiseaseChange(this)"> ความดันโลหิตสูง</label>
+                                <label class="cursor-pointer flex items-center"><input type="checkbox" name="udisease" value="ไขมันในเลือดสูง" class="mr-2 h-4 w-4 text-blue-600" onchange="handleUDiseaseChange(this)"> ไขมันในเลือดสูง</label>
+                                <label class="cursor-pointer flex items-center"><input type="checkbox" name="udisease" value="โรคหัวใจ" class="mr-2 h-4 w-4 text-blue-600" onchange="handleUDiseaseChange(this)"> โรคหัวใจ</label>
+                                <label class="cursor-pointer flex items-center"><input type="checkbox" name="udisease" value="โรคไตเรื้อรัง" class="mr-2 h-4 w-4 text-blue-600" onchange="handleUDiseaseChange(this)"> โรคไตเรื้อรัง</label>
+                                <label class="cursor-pointer flex items-center"><input type="checkbox" name="udisease" value="โรคหลอดเลือดสมอง" class="mr-2 h-4 w-4 text-blue-600" onchange="handleUDiseaseChange(this)"> โรคหลอดเลือดสมอง</label>
+                                <label class="cursor-pointer flex items-center"><input type="checkbox" name="udisease" value="โรคหอบหืด/ภูมิแพ้" class="mr-2 h-4 w-4 text-blue-600" onchange="handleUDiseaseChange(this)"> โรคหอบหืด/ภูมิแพ้</label>
+                                <label class="cursor-pointer flex items-center"><input type="checkbox" name="udisease" value="โรคปอดอุดกั้นเรื้อรัง" class="mr-2 h-4 w-4 text-blue-600" onchange="handleUDiseaseChange(this)"> โรคปอดอุดกั้นเรื้อรัง</label>
+                                <label class="cursor-pointer flex items-center"><input type="checkbox" name="udisease" value="โรคมะเร็ง" class="mr-2 h-4 w-4 text-blue-600" onchange="handleUDiseaseChange(this)"> โรคมะเร็ง</label>
+                                <label class="cursor-pointer flex items-center"><input type="checkbox" name="udisease" value="โรคไทรอยด์" class="mr-2 h-4 w-4 text-blue-600" onchange="handleUDiseaseChange(this)"> โรคไทรอยด์</label>
+                                <div class="flex items-center flex-wrap gap-2 col-span-1 sm:col-span-2 lg:col-span-3 mt-1">
+                                    <label class="cursor-pointer flex items-center"><input type="checkbox" name="udisease" value="อื่นๆ" id="uDiseaseOther" class="mr-2 h-4 w-4 text-blue-600" onchange="handleUDiseaseChange(this)"> อื่นๆ (ระบุ)</label>
+                                    <input type="text" id="uDiseaseOtherText" placeholder="ระบุโรคประจำตัว..." class="hidden-element border p-1 rounded text-sm w-full sm:flex-1 outline-none focus:border-blue-400">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700 mb-1">โรคที่แพทย์เคยวินิจฉัย</label>
+                            <div class="mt-1 space-y-2 p-2 border rounded-md bg-white border-gray-300">
+                                <label class="cursor-pointer flex items-center"><input type="checkbox" name="disease" value="ไม่เป็น" class="mr-2 h-4 w-4" onchange="handleDiseaseChange(this)"> ไม่เป็น</label>
+                                <label class="cursor-pointer flex items-center"><input type="checkbox" name="disease" value="ไวรัสตับอักเสบ บี" class="mr-2 h-4 w-4" onchange="handleDiseaseChange(this)"> ไวรัสตับอักเสบ บี</label>
+                                <label class="cursor-pointer flex items-center"><input type="checkbox" name="disease" value="ไวรัสตับอักเสบ ซี" class="mr-2 h-4 w-4" onchange="handleDiseaseChange(this)"> ไวรัสตับอักเสบ ซี</label>
+                                <label class="cursor-pointer flex items-center"><input type="checkbox" name="disease" value="เบาหวาน" class="mr-2 h-4 w-4" onchange="handleDiseaseChange(this)"> เบาหวาน</label>
+                                <div class="flex items-center flex-wrap gap-2">
+                                    <label class="cursor-pointer flex items-center"><input type="checkbox" name="disease" value="อื่นๆ" id="diseaseOther" class="mr-2 h-4 w-4" onchange="handleDiseaseChange(this)"> อื่นๆ (ระบุ)</label>
+                                    <input type="text" id="diseaseOtherText" placeholder="ระบุโรค..." class="hidden-element border p-1 rounded text-sm w-full mt-1 sm:mt-0 sm:flex-1 outline-none focus:border-blue-400">
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">ประวัติการสูบบุหรี่</label>
+                            <select id="smoking" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border outline-none">
+                                <option value="ไม่สูบ">ไม่สูบ</option>
+                                <option value="สูบ/เคยสูบ">สูบ/เคยสูบ</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">ประวัติการดื่มแอลกอฮอล์</label>
+                            <select id="alcohol" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-2 border outline-none">
+                                <option value="ไม่ดื่ม">ไม่ดื่ม</option>
+                                <option value="ดื่ม/เคยดื่ม">ดื่ม/เคยดื่ม</option>
+                                <option value="เป็นโรคพิษสุราเรื้อรัง">เป็นโรคพิษสุราเรื้อรัง</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- แบบคัดกรอง 5 ข้อ -->
+                <div class="bg-red-50 p-4 rounded-lg mb-6 border border-red-100">
+                    <h3 class="text-lg font-semibold mb-4 text-red-700"><i class="fas fa-exclamation-triangle mr-2"></i>ประวัติความเสี่ยง (ตอบให้ครบทั้ง 5 ข้อ)</h3>
+                    
+                    <div class="space-y-4">
+                        <!-- Q1 -->
+                        <div class="p-3 bg-white rounded shadow-sm border hover:border-red-300 transition">
+                            <p class="font-medium text-gray-800 mb-2">1. ท่านเคยติดเชื้อพยาธิใบไม้ตับ หรือไม่?</p>
+                            <div class="flex gap-4">
+                                <label class="cursor-pointer flex items-center"><input type="radio" name="q1" value="ไม่เคย" required class="mr-2 w-4 h-4"> ไม่เคย</label>
+                                <label class="cursor-pointer flex items-center"><input type="radio" name="q1" value="เคย" class="mr-2 w-4 h-4"> เคย</label>
+                            </div>
+                        </div>
+                        <!-- Q2 -->
+                        <div class="p-3 bg-white rounded shadow-sm border hover:border-red-300 transition">
+                            <p class="font-medium text-gray-800 mb-2">2. ท่านเคยกินยาฆ่าพยาธิใบไม้ตับ หรือไม่?</p>
+                            <div class="flex gap-4 items-center flex-wrap">
+                                <label class="cursor-pointer flex items-center"><input type="radio" name="q2" value="ไม่เคย" required class="mr-2 w-4 h-4" onchange="toggleInput('q2', 'q2Count')"> ไม่เคย</label>
+                                <label class="cursor-pointer flex items-center"><input type="radio" name="q2" value="เคย" class="mr-2 w-4 h-4" onchange="toggleInput('q2', 'q2Count')"> เคย</label>
+                                <input type="number" id="q2Count" placeholder="จำนวนครั้ง (ระบุ)" class="hidden-element ml-2 border p-1 rounded text-sm w-32 outline-none focus:border-red-400" min="1">
+                            </div>
+                        </div>
+                        <!-- Q3 -->
+                        <div class="p-3 bg-white rounded shadow-sm border hover:border-red-300 transition">
+                            <p class="font-medium text-gray-800 mb-2">3. ท่านเคยกินปลาน้ำจืด ที่มีเกล็ดขาวดิบๆ (ก้อยปลา ลาบปลาดิบ ปลาส้ม ฯลฯ) หรือไม่?</p>
+                            <div class="flex gap-4">
+                                <label class="cursor-pointer flex items-center"><input type="radio" name="q3" value="ไม่เคย" required class="mr-2 w-4 h-4"> ไม่เคย</label>
+                                <label class="cursor-pointer flex items-center"><input type="radio" name="q3" value="เคย" class="mr-2 w-4 h-4"> เคย</label>
+                            </div>
+                        </div>
+                        <!-- Q4 -->
+                        <div class="p-3 bg-white rounded shadow-sm border hover:border-red-300 transition">
+                            <p class="font-medium text-gray-800 mb-2">4. ท่านเคยกินปลาร้าดิบ หรือไม่?</p>
+                            <div class="flex gap-4">
+                                <label class="cursor-pointer flex items-center"><input type="radio" name="q4" value="ไม่เคย" required class="mr-2 w-4 h-4"> ไม่เคย</label>
+                                <label class="cursor-pointer flex items-center"><input type="radio" name="q4" value="เคย" class="mr-2 w-4 h-4"> เคย</label>
+                            </div>
+                        </div>
+                        <!-- Q5 -->
+                        <div class="p-3 bg-white rounded shadow-sm border hover:border-red-300 transition">
+                            <p class="font-medium text-gray-800 mb-2">5. ท่านมีญาติสายตรง (พ่อ แม่ พี่ น้อง) เป็นมะเร็งท่อน้ำดี หรือไม่?</p>
+                            <div class="flex gap-4 items-center flex-wrap">
+                                <label class="cursor-pointer flex items-center"><input type="radio" name="q5" value="ไม่มี" required class="mr-2 w-4 h-4" onchange="toggleInput('q5', 'q5Relation', 'มี')"> ไม่มี</label>
+                                <label class="cursor-pointer flex items-center"><input type="radio" name="q5" value="มี" class="mr-2 w-4 h-4" onchange="toggleInput('q5', 'q5Relation', 'มี')"> มี</label>
+                                <input type="text" id="q5Relation" placeholder="ระบุความสัมพันธ์" class="hidden-element ml-2 border p-1 rounded text-sm w-48 outline-none focus:border-red-400">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Alert Message -->
+                <div id="urlAlert" class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4" role="alert">
+                    <p class="font-bold">คำเตือนการตั้งค่าระบบ</p>
+                    <p>กรุณาตั้งค่า <code>GAS_WEB_APP_URL</code> ในโค้ด <code>index.html</code> (บรรทัดล่างสุด) ก่อนทำการบันทึกข้อมูล</p>
+                </div>
+
+                <!-- OSM Name -->
+                <div class="bg-gray-50 p-4 rounded-lg mb-6 border border-gray-200">
+                    <label class="block text-sm font-medium text-gray-700">ชื่อ อสม. ที่ทำการคัดกรอง</label>
+                    <input type="text" id="osmName" required placeholder="ระบุชื่อ-นามสกุล อสม." class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-3 border outline-none focus:border-blue-500">
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" id="submitBtn" class="w-full bg-blue-600 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-700 transition flex justify-center items-center shadow-lg">
+                    <i class="fas fa-save mr-2"></i> ประเมินผลและบันทึกข้อมูล
+                </button>
+
+            </form>
+        </div>
+
+        <!-- Section: Result / AI Summary -->
+        <div id="section-result" class="p-6 hidden-element">
+            <div class="text-center mb-6">
+                <i class="fas fa-check-circle text-green-500 text-5xl mb-4"></i>
+                <h2 class="text-2xl font-bold text-gray-800">บันทึกข้อมูลสำเร็จ</h2>
+                <p class="text-gray-600 mt-1">รหัสผู้ป่วย: <span id="resPatientId" class="font-bold text-blue-600 tracking-wider"></span></p>
+            </div>
+
+            <div class="bg-white rounded-lg shadow-sm border p-6 text-center">
+                <h3 class="text-lg font-medium text-gray-700 mb-3">ผลการคัดกรอง</h3>
+                <div id="riskBadge" class="inline-block px-8 py-3 rounded-full text-xl font-bold text-white mb-4 shadow-md">
+                    -
+                </div>
+                <p id="riskDesc" class="text-gray-700 font-medium"></p>
+            </div>
+
+            <div class="mt-6 bg-purple-50 p-6 rounded-lg border border-purple-200">
+                <h3 class="text-lg font-bold text-purple-800 mb-3"><i class="fas fa-robot mr-2"></i>AI Summary & Recommendations</h3>
+                <div id="aiSummaryText" class="text-gray-700 whitespace-pre-wrap bg-white p-4 rounded border text-sm leading-relaxed shadow-inner min-h-[100px]">
+                    กำลังประมวลผล...
+                </div>
+            </div>
+
+            <button onclick="resetForm()" class="mt-6 w-full bg-gray-800 text-white font-bold py-3 px-4 rounded-lg hover:bg-gray-900 transition flex items-center justify-center shadow">
+                <i class="fas fa-plus mr-2"></i> คัดกรองผู้ป่วยรายใหม่
+            </button>
+        </div>
+
+        <!-- Section: Dashboard -->
+        <div id="section-dashboard" class="p-4 sm:p-6 hidden-element">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold text-gray-800"><i class="fas fa-chart-line mr-2"></i>แดชบอร์ดภาพรวม</h2>
+                <button onclick="loadDashboard()" class="text-blue-600 hover:text-blue-800 transition p-2 rounded-full hover:bg-blue-50">
+                    <i class="fas fa-sync-alt"></i>
+                </button>
+            </div>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+                <div class="bg-blue-50 p-4 rounded-lg text-center border border-blue-200 shadow-sm">
+                    <h4 class="text-blue-800 text-sm font-bold">ยอดคัดกรองทั้งหมด</h4>
+                    <p id="dashTotal" class="text-4xl font-bold text-blue-600 mt-2">0</p>
+                </div>
+                <div class="bg-red-50 p-4 rounded-lg text-center border border-red-200 shadow-sm">
+                    <h4 class="text-red-800 text-sm font-bold">กลุ่มเสี่ยงสูง/สงสัย</h4>
+                    <p id="dashHigh" class="text-4xl font-bold text-red-600 mt-2">0</p>
+                </div>
+                <div class="bg-green-50 p-4 rounded-lg text-center border border-green-200 shadow-sm">
+                    <h4 class="text-green-800 text-sm font-bold">ปกติ/เสี่ยงต่ำ</h4>
+                    <p id="dashLow" class="text-4xl font-bold text-green-600 mt-2">0</p>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="bg-white p-4 rounded-lg border shadow-sm flex flex-col items-center">
+                    <h4 class="font-semibold mb-4 text-gray-700">สัดส่วนระดับความเสี่ยง</h4>
+                    <div class="chart-container">
+                        <canvas id="riskChart"></canvas>
+                    </div>
+                </div>
+                <div class="bg-white p-4 rounded-lg border shadow-sm flex flex-col items-center">
+                    <h4 class="font-semibold mb-4 text-gray-700">สัดส่วนเพศผู้เข้ารับการคัดกรอง</h4>
+                    <div class="chart-container">
+                        <canvas id="genderChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Section: Admin (Login & Data Management) -->
+        <div id="section-admin" class="p-4 sm:p-6 hidden-element">
+            
+            <!-- Login Box -->
+            <div id="admin-login" class="max-w-md mx-auto bg-white p-8 rounded-lg shadow-md border mt-4 mb-8">
+                <div class="text-center mb-6">
+                    <div class="inline-block bg-blue-100 text-blue-600 p-4 rounded-full mb-3">
+                        <i class="fas fa-user-shield text-3xl"></i>
+                    </div>
+                    <h2 class="text-2xl font-bold text-gray-800">เข้าสู่ระบบผู้ดูแลระบบ</h2>
+                </div>
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700">Username</label>
+                    <input type="text" id="adminUser" placeholder="ชื่อผู้ใช้" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-3 border outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+                </div>
+                <div class="mb-6">
+                    <label class="block text-sm font-medium text-gray-700">Password</label>
+                    <input type="password" id="adminPass" placeholder="รหัสผ่าน" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm p-3 border outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" onkeypress="if(event.key === 'Enter') loginAdmin()">
+                </div>
+                <button onclick="loginAdmin()" class="w-full bg-blue-700 text-white font-bold py-3 px-4 rounded-lg hover:bg-blue-800 transition shadow-md">
+                    <i class="fas fa-sign-in-alt mr-2"></i> เข้าสู่ระบบ
+                </button>
+            </div>
+
+            <!-- Admin Panel (Hidden by default) -->
+            <div id="admin-panel" class="hidden-element">
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                    <h2 class="text-2xl font-bold text-gray-800"><i class="fas fa-list-alt text-blue-600 mr-2"></i>จัดการรายชื่อผู้ป่วย</h2>
+                    <div class="flex gap-2">
+                        <button onclick="loadDashboard()" class="bg-gray-100 text-gray-700 px-4 py-2 rounded-lg shadow-sm hover:bg-gray-200 border border-gray-300 transition">
+                            <i class="fas fa-sync-alt mr-1"></i> รีเฟรช
+                        </button>
+                        <button onclick="switchTab('screening');" class="bg-green-600 text-white px-4 py-2 rounded-lg shadow-sm hover:bg-green-700 transition">
+                            <i class="fas fa-plus-circle mr-1"></i> เพิ่มข้อมูลใหม่
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="overflow-x-auto bg-white shadow-sm rounded-lg border border-gray-200">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-100">
+                            <tr>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">วันที่คัดกรอง</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">รหัสผู้ป่วย (ID)</th>
+                                <th class="px-6 py-4 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">ชื่อ - นามสกุล</th>
+                                <th class="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">ความเสี่ยง</th>
+                                <th class="px-6 py-4 text-center text-xs font-bold text-gray-600 uppercase tracking-wider">การจัดการ</th>
+                            </tr>
+                        </thead>
+                        <tbody id="patientTableBody" class="bg-white divide-y divide-gray-200">
+                            <!-- ข้อมูลจะถูกเติมด้วย JavaScript -->
+                            <tr><td colspan="5" class="text-center py-6 text-gray-500">กรุณารอสักครู่...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+        </div>
+
+    </div>
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="fixed inset-0 bg-gray-900 bg-opacity-75 hidden-element flex justify-center items-center z-50 transition-opacity">
+        <div class="bg-white p-8 rounded-xl shadow-2xl flex flex-col items-center max-w-sm w-full mx-4">
+            <div class="loader ease-linear rounded-full border-4 border-t-4 border-blue-200 border-t-blue-600 h-16 w-16 mb-6"></div>
+            <h2 class="text-center text-gray-800 text-xl font-bold mb-2">กำลังประมวลผล</h2>
+            <p class="text-gray-500 text-center text-sm">ระบบกำลังบันทึกข้อมูลและให้ AI วิเคราะห์ผล กรุณารอสักครู่...</p>
+        </div>
+    </div>
+
+    <script>
+        // =========================================================================
+        // ตั้งค่า GAS Web App URL ของคุณที่นี่ (คัดลอกมาจากการ Deploy ของคุณ)
+        // =========================================================================
+        const GAS_WEB_APP_URL = "https://script.google.com/macros/s/AKfycbxAoGUEGRd7rtz_6k3DX_GKzkhB6-58ElEUKDesB8i9Q5xgoYMz_NuZbsvHm4tmQ4qv/exec";
+
+        // ซ่อนคำเตือนถ้ายอมแก้ไข URL แล้ว
+        if (GAS_WEB_APP_URL !== "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE") {
+            document.getElementById('urlAlert').style.display = 'none';
+        }
+
+        // Tab Switching
+        function switchTab(tabId) {
+            document.getElementById('section-screening').classList.add('hidden-element');
+            document.getElementById('section-dashboard').classList.add('hidden-element');
+            document.getElementById('section-result').classList.add('hidden-element');
+            document.getElementById('section-admin').classList.add('hidden-element'); // Tab Admin
+            
+            document.getElementById('tab-screening').classList.remove('active');
+            document.getElementById('tab-dashboard').classList.remove('active');
+            document.getElementById('tab-admin').classList.remove('active'); // Tab Admin
+            
+            document.getElementById('section-' + tabId).classList.remove('hidden-element');
+            
+            if (tabId === 'screening' || tabId === 'dashboard' || tabId === 'admin') {
+                document.getElementById('tab-' + tabId).classList.add('active');
+            }
+
+            // หากกดเข้า Dashboard หรือหน้า Admin (ที่ล็อกอินแล้ว) ให้โหลดข้อมูลล่าสุด
+            if (tabId === 'dashboard' || (tabId === 'admin' && !document.getElementById('admin-panel').classList.contains('hidden-element'))) {
+                loadDashboard();
+            }
+        }
+
+        // ระบบ Login Admin
+        function loginAdmin() {
+            const user = document.getElementById('adminUser').value.trim();
+            const pass = document.getElementById('adminPass').value.trim();
+            
+            // ปรับให้รองรับ admin ทั้งพิมพ์เล็กและพิมพ์ใหญ่ และรองรับรหัสผ่าน 1234
+            if (user.toLowerCase() === 'admin' && (pass === '1234' || pass === '1 2 3 4')) {
+                document.getElementById('admin-login').classList.add('hidden-element');
+                document.getElementById('admin-panel').classList.remove('hidden-element');
+                // ล้างรหัสผ่านเพื่อความปลอดภัย
+                document.getElementById('adminPass').value = '';
+                loadDashboard(); // ดึงข้อมูลผู้ป่วย
+            } else {
+                alert('Username หรือ Password ไม่ถูกต้อง! (กรุณาใช้ admin / 1234)');
+            }
+        }
+
+        // Calculate Age from DOB robustly
+        function calculateAge() {
+            const d = document.getElementById('dobDay').value;
+            const m = document.getElementById('dobMonth').value;
+            const y_be = document.getElementById('dobYear').value;
+            const ageInput = document.getElementById('age');
+
+            if(y_be && y_be.length === 4 && parseInt(y_be) >= 2400) {
+                // แปลง พ.ศ. เป็น ค.ศ. สำหรับคำนวณ
+                const birthYearAD = parseInt(y_be) - 543;
+                const today = new Date();
+                let age = today.getFullYear() - birthYearAD;
+                
+                if(m && d) {
+                    const birthMonth = parseInt(m) - 1; // เดือนเริ่มที่ 0
+                    const birthDay = parseInt(d);
+                    const currentMonth = today.getMonth();
+                    const currentDay = today.getDate();
+                    
+                    // ถ้ายังไม่ถึงวันเกิดในปีนี้ ให้ลบอายุออก 1 ปี
+                    if (currentMonth < birthMonth || (currentMonth === birthMonth && currentDay < birthDay)) {
+                        age--;
+                    }
+                }
+                ageInput.value = age >= 0 ? age : 0;
+            } else {
+                ageInput.value = "";
+            }
+        }
+
+        // Toggle Additional Inputs
+        function toggleInput(radioName, inputId, triggerValue = 'เคย') {
+            const radios = document.getElementsByName(radioName);
+            const inputField = document.getElementById(inputId);
+            let show = false;
+            for(let r of radios) {
+                if(r.checked && r.value === triggerValue) { show = true; break; }
+            }
+            if(show) {
+                inputField.classList.remove('hidden-element');
+                inputField.required = true;
+                inputField.focus();
+            } else {
+                inputField.classList.add('hidden-element');
+                inputField.required = false;
+                inputField.value = '';
+            }
+        }
+
+        // จัดการ Checkbox โรคประจำตัว
+        function handleUDiseaseChange(el) {
+            const isNone = el.value === 'ไม่มี';
+            const checkboxes = document.querySelectorAll('input[name="udisease"]');
+            
+            // ถ้าเลือก 'ไม่มี' ให้เอาติ๊กข้ออื่นๆ ออก
+            if (isNone && el.checked) {
+                checkboxes.forEach(cb => { if (cb.value !== 'ไม่มี') cb.checked = false; });
+                document.getElementById('uDiseaseOtherText').classList.add('hidden-element');
+                document.getElementById('uDiseaseOtherText').value = '';
+                document.getElementById('uDiseaseOtherText').required = false;
+            } 
+            // ถ้าเลือกโรคอื่นๆ ให้เอาติ๊ก 'ไม่มี' ออก
+            else if (!isNone && el.checked) {
+                document.querySelector('input[name="udisease"][value="ไม่มี"]').checked = false;
+            }
+
+            // แสดง/ซ่อน ช่องกรอก "อื่นๆ"
+            const otherCb = document.getElementById('uDiseaseOther');
+            const otherText = document.getElementById('uDiseaseOtherText');
+            if (otherCb.checked) {
+                otherText.classList.remove('hidden-element');
+                otherText.required = true;
+            } else {
+                otherText.classList.add('hidden-element');
+                otherText.required = false;
+                otherText.value = '';
+            }
+        }
+
+        // จัดการ Checkbox โรคที่แพทย์เคยวินิจฉัย
+        function handleDiseaseChange(el) {
+            const isNone = el.value === 'ไม่เป็น';
+            const checkboxes = document.querySelectorAll('input[name="disease"]');
+            
+            // ถ้าเลือก 'ไม่เป็น' ให้เอาติ๊กข้ออื่นๆ ออก
+            if (isNone && el.checked) {
+                checkboxes.forEach(cb => { if (cb.value !== 'ไม่เป็น') cb.checked = false; });
+                document.getElementById('diseaseOtherText').classList.add('hidden-element');
+                document.getElementById('diseaseOtherText').value = '';
+                document.getElementById('diseaseOtherText').required = false;
+            } 
+            // ถ้าเลือกโรคอื่นๆ ให้เอาติ๊ก 'ไม่เป็น' ออก
+            else if (!isNone && el.checked) {
+                document.querySelector('input[name="disease"][value="ไม่เป็น"]').checked = false;
+            }
+
+            // แสดง/ซ่อน ช่องกรอก "อื่นๆ"
+            const otherCb = document.getElementById('diseaseOther');
+            const otherText = document.getElementById('diseaseOtherText');
+            if (otherCb.checked) {
+                otherText.classList.remove('hidden-element');
+                otherText.required = true;
+            } else {
+                otherText.classList.add('hidden-element');
+                otherText.required = false;
+                otherText.value = '';
+            }
+        }
+
+        // Main Submit Function
+        async function submitForm(e) {
+            e.preventDefault();
+            
+            if (GAS_WEB_APP_URL === "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE" || GAS_WEB_APP_URL === "") {
+                alert("เกิดข้อผิดพลาด: กรุณานำ URL ของ Google Apps Script ที่ Deploy เสร็จแล้วมาใส่ในบรรทัด GAS_WEB_APP_URL ในโค้ดก่อนครับ");
+                return;
+            }
+
+            // รวบรวมข้อมูล ฟิลด์ Radio จำเป็นต้องเช็คว่ามีค่าหรือไม่
+            const getRadioValue = (name) => {
+                const checked = document.querySelector(`input[name="${name}"]:checked`);
+                return checked ? checked.value : null;
+            };
+
+            // ประมวลผลและรวมข้อความ "ที่อยู่ปัจจุบัน"
+            const houseNo = document.getElementById('houseNo').value;
+            const moo = document.getElementById('moo').value;
+            const mooText = moo ? ` ม.${moo}` : "";
+            const fullAddress = `บ้านเลขที่ ${houseNo}${mooText} ต.บึงเนียม อ.เมือง จ.ขอนแก่น`;
+
+            // ประมวลผลและรวมข้อความ "โรคประจำตัว"
+            let selectedUDiseases = [];
+            document.querySelectorAll('input[name="udisease"]:checked').forEach(cb => {
+                if(cb.value === 'อื่นๆ') {
+                    selectedUDiseases.push('อื่นๆ (' + document.getElementById('uDiseaseOtherText').value + ')');
+                } else {
+                    selectedUDiseases.push(cb.value);
+                }
+            });
+            const finalUDiseases = selectedUDiseases.length > 0 ? selectedUDiseases.join(', ') : "ไม่ได้ระบุ";
+
+            // ประมวลผลและรวมข้อความ "โรคที่แพทย์เคยวินิจฉัย"
+            let selectedDiseases = [];
+            document.querySelectorAll('input[name="disease"]:checked').forEach(cb => {
+                if(cb.value === 'อื่นๆ') {
+                    selectedDiseases.push('อื่นๆ (' + document.getElementById('diseaseOtherText').value + ')');
+                } else {
+                    selectedDiseases.push(cb.value);
+                }
+            });
+            const finalDiseases = selectedDiseases.length > 0 ? selectedDiseases.join(', ') : "ไม่ได้ระบุ";
+
+            // ประมวลผลวันเกิด พ.ศ.
+            const dobDay = document.getElementById('dobDay').value;
+            const dobMonth = document.getElementById('dobMonth').value;
+            const dobYear = document.getElementById('dobYear').value;
+            const finalDob = (dobDay && dobMonth && dobYear) ? `${dobDay}/${dobMonth}/${dobYear}` : "";
+
+            const formData = {
+                idCard: document.getElementById('idCard').value,
+                prefix: document.getElementById('prefix').value,
+                firstName: document.getElementById('firstName').value,
+                lastName: document.getElementById('lastName').value,
+                gender: document.getElementById('gender').value,
+                dob: finalDob,
+                age: document.getElementById('age').value,
+                maritalStatus: document.getElementById('maritalStatus').value,
+                occupation: document.getElementById('occupation').value,
+                phone: document.getElementById('phone').value,
+                address: fullAddress,
+                weight: document.getElementById('weight').value,
+                height: document.getElementById('height').value,
+                underlyingDisease: finalUDiseases,
+                diagnosedDiseases: finalDiseases,
+                smoking: document.getElementById('smoking').value,
+                alcohol: document.getElementById('alcohol').value,
+                q1: getRadioValue('q1'),
+                q2: getRadioValue('q2'),
+                q2Count: document.getElementById('q2Count').value,
+                q3: getRadioValue('q3'),
+                q4: getRadioValue('q4'),
+                q5: getRadioValue('q5'),
+                q5Relation: document.getElementById('q5Relation').value,
+                osmName: document.getElementById('osmName').value
+            };
+
+            document.getElementById('loadingOverlay').classList.remove('hidden-element');
+
+            try {
+                // อัปเดตเพื่อหลีกเลี่ยง CORS Error: เปลี่ยน headers เป็น text/plain 
+                const response = await fetch(GAS_WEB_APP_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'text/plain;charset=utf-8', 
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                const result = await response.json();
+                document.getElementById('loadingOverlay').classList.add('hidden-element');
+
+                if(result.status === "success") {
+                    showResult(result);
+                } else {
+                    alert("บันทึกไม่สำเร็จ: " + result.message);
+                }
+            } catch (error) {
+                document.getElementById('loadingOverlay').classList.add('hidden-element');
+                alert("การเชื่อมต่อล้มเหลว กรุณาตรวจสอบ Internet หรือ Web App URL: " + error.message);
+            }
+        }
+
+        // Show Result Page
+        function showResult(data) {
+            // แสดงผลหน้าจอ
+            document.getElementById('section-screening').classList.add('hidden-element');
+            document.getElementById('section-dashboard').classList.add('hidden-element');
+            document.getElementById('section-result').classList.remove('hidden-element');
+            
+            // ยกเลิก Active Tab Menu
+            document.getElementById('tab-screening').classList.remove('active');
+            document.getElementById('tab-dashboard').classList.remove('active');
+            
+            document.getElementById('resPatientId').innerText = data.patientId;
+            document.getElementById('aiSummaryText').innerText = data.aiSummary || "ประมวลผล AI ไม่สำเร็จ";
+
+            const badge = document.getElementById('riskBadge');
+            const desc = document.getElementById('riskDesc');
+            
+            // Map ข้อมูลตามเกณฑ์ (อ้างอิงเอกสาร)
+            const riskMap = {
+                "Low": { color: "bg-green-500", text: "ไม่มีความเสี่ยง", desc: "คะแนน 0-1 ข้อ (แนะนำรักษาสุขภาพและตรวจประจำปี)" },
+                "Medium": { color: "bg-yellow-500", text: "มีความเสี่ยง (เฝ้าระวัง)", desc: "คะแนน 2 ข้อ (ควรปรับเปลี่ยนพฤติกรรม)" },
+                "High": { color: "bg-orange-500", text: "มีความเสี่ยง 3 ข้อ", desc: "ต้องเข้ารับการตรวจยืนยันและเข้าสู่ระบบ CASCAP" },
+                "Suspected": { color: "bg-red-600", text: "มีความเสี่ยงตั้งแต่ 4 ข้อขึ้นไป", desc: "เสี่ยงสูงมาก ดำเนินการนัดอัลตราซาวด์ (US) ทันที" }
+            };
+
+            const info = riskMap[data.riskLevel] || riskMap["Low"];
+            
+            badge.className = `inline-block px-8 py-3 rounded-full text-xl font-bold text-white mb-4 shadow-md ${info.color}`;
+            badge.innerText = info.text;
+            desc.innerText = info.desc;
+        }
+
+        // Reset แบบฟอร์ม
+        function resetForm() {
+            document.getElementById('ovForm').reset();
+            document.getElementById('q2Count').classList.add('hidden-element');
+            document.getElementById('q5Relation').classList.add('hidden-element');
+            document.getElementById('diseaseOtherText').classList.add('hidden-element');
+            document.getElementById('uDiseaseOtherText').classList.add('hidden-element');
+            // เซ็ตอายุกลับเป็นค่าว่าง
+            document.getElementById('age').value = '';
+            // เลื่อนจอขึ้นด้านบนสุด
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            switchTab('screening');
+        }
+
+        // ==========================================
+        // Dashboard Scripts
+        // ==========================================
+        let riskChartInst = null;
+        let genderChartInst = null;
+
+        async function loadDashboard() {
+            if (GAS_WEB_APP_URL === "" || GAS_WEB_APP_URL === "YOUR_GOOGLE_APPS_SCRIPT_WEB_APP_URL_HERE") {
+                console.warn("ไม่สามารถดึงข้อมูล Dashboard ได้ (ยังไม่ได้ตั้งค่า URL)");
+                return;
+            }
+            
+            try {
+                const response = await fetch(GAS_WEB_APP_URL);
+                const result = await response.json();
+                
+                if(result.status === "success") {
+                    updateDashboardUI(result.data);
+                    updateAdminTable(result.patients); // อัปเดตตารางแอดมิน
+                }
+            } catch (error) {
+                console.error("Failed to load dashboard:", error);
+            }
+        }
+
+        function updateDashboardUI(data) {
+            // อัปเดตตัวเลขแบบ Real-time
+            document.getElementById('dashTotal').innerText = data.total;
+            const highRiskCount = (data.riskLevels.High || 0) + (data.riskLevels.Suspected || 0);
+            document.getElementById('dashHigh').innerText = highRiskCount;
+            document.getElementById('dashLow').innerText = (data.riskLevels.Low || 0) + (data.riskLevels.Medium || 0);
+
+            // วาดกราฟโดนัท (Risk Levels)
+            const ctxRisk = document.getElementById('riskChart').getContext('2d');
+            if(riskChartInst) riskChartInst.destroy();
+            riskChartInst = new Chart(ctxRisk, {
+                type: 'doughnut',
+                data: {
+                    labels: ['ปกติ (Low)', 'เฝ้าระวัง (Medium)', 'เสี่ยงสูง (High)', 'สงสัย (Suspected)'],
+                    datasets: [{
+                        data: [
+                            data.riskLevels.Low || 0, 
+                            data.riskLevels.Medium || 0, 
+                            data.riskLevels.High || 0, 
+                            data.riskLevels.Suspected || 0
+                        ],
+                        backgroundColor: ['#22c55e', '#eab308', '#f97316', '#dc2626'],
+                        borderWidth: 2,
+                        hoverOffset: 4
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+
+            // วาดกราฟพาย (Genders)
+            const ctxGender = document.getElementById('genderChart').getContext('2d');
+            if(genderChartInst) genderChartInst.destroy();
+            genderChartInst = new Chart(ctxGender, {
+                type: 'pie',
+                data: {
+                    labels: ['ชาย', 'หญิง'],
+                    datasets: [{
+                        data: [data.genders['ชาย'] || 0, data.genders['หญิง'] || 0],
+                        backgroundColor: ['#3b82f6', '#ec4899'],
+                        borderWidth: 2,
+                        hoverOffset: 4
+                    }]
+                },
+                options: { responsive: true, maintainAspectRatio: false }
+            });
+        }
+
+        // อัปเดตตารางรายชื่อผู้ป่วย (Admin)
+        function updateAdminTable(patients) {
+            const tbody = document.getElementById('patientTableBody');
+            if(!tbody) return;
+            tbody.innerHTML = '';
+            
+            if(!patients || patients.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" class="text-center py-8 text-gray-500">ยังไม่มีข้อมูลผู้ป่วยในระบบ</td></tr>';
+                return;
+            }
+
+            patients.forEach(p => {
+                let badgeClass = "bg-green-100 text-green-800 border-green-200";
+                if(p.riskLevel === "Medium") badgeClass = "bg-yellow-100 text-yellow-800 border-yellow-200";
+                else if(p.riskLevel === "High") badgeClass = "bg-orange-100 text-orange-800 border-orange-200";
+                else if(p.riskLevel === "Suspected") badgeClass = "bg-red-100 text-red-800 border-red-200";
+
+                const dateStr = new Date(p.timestamp).toLocaleDateString('th-TH', { 
+                    year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute:'2-digit' 
+                });
+
+                tbody.innerHTML += `
+                    <tr class="hover:bg-blue-50 transition">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-600">${dateStr}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm font-semibold text-blue-600">${p.patientId}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900 font-medium">${p.name} <br><span class="text-xs text-gray-500 font-normal">อายุ ${p.age} ปี</span></td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center">
+                            <span class="px-3 py-1 inline-flex text-xs leading-5 font-bold rounded-full border ${badgeClass}">
+                                ${p.riskLevel}
+                            </span>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-center text-sm font-medium">
+                            <button onclick="deletePatient('${p.patientId}')" class="text-red-600 hover:text-white hover:bg-red-600 bg-red-50 px-3 py-2 rounded-lg transition" title="ลบข้อมูล">
+                                <i class="fas fa-trash-alt"></i> ลบ
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        // ระบบลบข้อมูลผู้ป่วย
+        async function deletePatient(patientId) {
+            if(confirm(`ยืนยันการลบข้อมูลผู้ป่วยรหัส ${patientId} ใช่หรือไม่?\n(การลบจะไม่สามารถกู้คืนได้)`)) {
+                document.getElementById('loadingOverlay').classList.remove('hidden-element');
+                try {
+                    const response = await fetch(GAS_WEB_APP_URL, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+                        body: JSON.stringify({ action: 'delete', patientId: patientId })
+                    });
+                    
+                    const result = await response.json();
+                    document.getElementById('loadingOverlay').classList.add('hidden-element');
+
+                    if(result.status === 'success') {
+                        // โหลดข้อมูลในตารางใหม่
+                        loadDashboard();
+                    } else {
+                        alert("ลบข้อมูลไม่สำเร็จ: " + result.message);
+                    }
+                } catch(error) {
+                    document.getElementById('loadingOverlay').classList.add('hidden-element');
+                    alert("เกิดข้อผิดพลาดในการเชื่อมต่อ: " + error.message);
+                }
+            }
+        }
+    </script>
+</body>
+</html>
