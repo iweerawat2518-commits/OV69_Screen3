@@ -284,6 +284,27 @@
                     </div>
                 </div>
 
+                <!-- ความประสงค์ในการตรวจปัสสาวะ -->
+                <div class="bg-yellow-50 p-4 rounded-lg mb-6 border border-yellow-200">
+                    <h3 class="text-lg font-semibold mb-3 text-yellow-800"><i class="fas fa-vial mr-2"></i>ความประสงค์ในการตรวจคัดกรอง</h3>
+                    <p class="font-medium text-gray-800 mb-4">กรุณาระบุความประสงค์ในการเข้ารับการคัดกรองโรคพยาธิใบไม้ตับ (Opisthorchis viverrini: OV) และมะเร็งท่อน้ำดี (Cholangiocarcinoma: CCA) โดยใช้ชุดตรวจปัสสาวะ เพื่อประเมินความเสี่ยงเบื้องต้น</p>
+                    
+                    <div class="flex flex-col gap-3 sm:flex-row">
+                        <label class="cursor-pointer flex items-center p-3 bg-white rounded shadow-sm border hover:border-yellow-400 transition sm:flex-1">
+                            <input type="radio" name="screeningIntent" value="ประสงค์เข้ารับการคัดกรอง" required class="mr-2 w-4 h-4 text-blue-600"> 
+                            <span class="font-medium text-gray-700">✅ ประสงค์เข้ารับการคัดกรอง</span>
+                        </label>
+                        <label class="cursor-pointer flex items-center p-3 bg-white rounded shadow-sm border hover:border-yellow-400 transition sm:flex-1">
+                            <input type="radio" name="screeningIntent" value="ไม่ประสงค์เข้ารับการคัดกรอง" class="mr-2 w-4 h-4 text-blue-600"> 
+                            <span class="font-medium text-gray-700">❌ ไม่ประสงค์เข้ารับการคัดกรอง</span>
+                        </label>
+                        <label class="cursor-pointer flex items-center p-3 bg-white rounded shadow-sm border hover:border-yellow-400 transition sm:flex-1">
+                            <input type="radio" name="screeningIntent" value="ขอเลื่อนนัดหมาย" class="mr-2 w-4 h-4 text-blue-600"> 
+                            <span class="font-medium text-gray-700">⏳ ขอเลื่อนนัดหมาย</span>
+                        </label>
+                    </div>
+                </div>
+
                 <!-- Alert Message -->
                 <div id="urlAlert" class="bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4" role="alert">
                     <p class="font-bold">คำเตือนการตั้งค่าระบบ</p>
@@ -676,6 +697,7 @@
                 q4: getRadioValue('q4'),
                 q5: getRadioValue('q5'),
                 q5Relation: document.getElementById('q5Relation').value,
+                screeningIntent: getRadioValue('screeningIntent'),
                 osmName: document.getElementById('osmName').value
             };
 
